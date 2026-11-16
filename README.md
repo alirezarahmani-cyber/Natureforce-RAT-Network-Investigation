@@ -14,6 +14,9 @@ Hands-on SOC Tier 1 investigation of malicious executable delivery and suspected
 
 ## Investigation Walkthrough
 
+Eight key screenshots are shown below. [All 20 evidence screenshots](evidence/screenshots/) remain available for detailed review.
+
+
 ### Capture properties
 
 Capture metadata: 42,497 packets, Ethernet, approximately 40 minutes 31 seconds.
@@ -24,19 +27,16 @@ Capture metadata: 42,497 packets, Ethernet, approximately 40 minutes 31 seconds.
 
 TCP dominates packet count; TLS accounts for 85.5% of bytes in the hierarchy.
 
-![Protocol hierarchy](evidence/screenshots/02_protocol_hierarchy.png)
 
 ### IPv4 endpoints
 
 10.10.1.128 is the main internal endpoint.
 
-![IPv4 endpoints](evidence/screenshots/03_endpoints.png)
 
 ### IPv4 conversations
 
 Prioritized external peers by volume and duration.
 
-![IPv4 conversations](evidence/screenshots/04_ipv4_conversations.png)
 
 ### TCP conversations
 
@@ -48,13 +48,11 @@ Streams 127, 128 and 130 were selected for review.
 
 DNS queries and responses identify 10.10.1.10 as the DNS server.
 
-![DNS infrastructure](evidence/screenshots/06_dns.png)
 
 ### TLS cloud connection
 
 Stream 127 uses TLS 1.3; SNI is consistent with Azure Blob Storage.
 
-![TLS cloud connection](evidence/screenshots/07_tls_stream127.png)
 
 ### Executable request
 
@@ -72,7 +70,6 @@ Frame 24916: HTTP 200 OK and 1,646,592 bytes of reconstructed file data.
 
 MZ, DOS stub and PE section names support executable identification.
 
-![PE indicators](evidence/screenshots/10_pe_indicators.png)
 
 ### Suspicious TCP connection
 
@@ -84,13 +81,11 @@ Stream 130 begins shortly after delivery; SSLv2 label does not establish the rea
 
 Frame 33 registers DESKTOP-4VGYQX7.
 
-![NBNS hostname](evidence/screenshots/16_nbns.png)
 
 ### Computer account
 
 Kerberos evidence associates the workstation computer account with NATUREFORCE.COM.
 
-![Computer account](evidence/screenshots/12_kerberos.png)
 
 ### SHA-256 extraction
 
@@ -108,7 +103,6 @@ TShark and PowerShell reconstruct and hash the HTTP body; byte count matches.
 
 The reviewed Relations tab does not establish a link to the suspected C2 IP.
 
-![Relations review](evidence/screenshots/15_relations.png)
 
 ### I/O graph
 
@@ -120,7 +114,6 @@ The initial burst dominates the graph; low later activity is not necessarily zer
 
 After relative second 220, the displayed sample shows one-byte Keep-Alive probes about 20 seconds apart.
 
-![TCP Keep-Alive](evidence/screenshots/18_keepalive.png)
 
 ## Alert Validation and Behavioral Analysis
 
@@ -130,13 +123,11 @@ Alert 1 (107.175.82[.]242:9000) matches the executable transfer. Alert 2 reports
 
 The exercise lists the executable delivery and suspected CNCmachineRMS C2 alerts.
 
-![Reported alerts](evidence/screenshots/19_reported_alerts.png)
 
 ### Alert IP discrepancy
 
 The exact reported IP 195.64.128.106 returns zero packets.
 
-![Alert IP discrepancy](evidence/screenshots/20_alert_discrepancy.png)
 
 ## Key Findings
 
