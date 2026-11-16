@@ -1,157 +1,163 @@
 # Natureforce — RAT Network Investigation
 
-![SOC Tier 1](https://img.shields.io/badge/SOC-Tier%201-blue)
-![Wireshark](https://img.shields.io/badge/Tool-Wireshark-1679A7)
-![Severity](https://img.shields.io/badge/Severity-High-red)
-![Status](https://img.shields.io/badge/Status-Completed-green)
+![SOC Tier 1](https://img.shields.io/badge/SOC-Tier%201-blue) ![Wireshark](https://img.shields.io/badge/Tool-Wireshark-1679A7) ![Severity](https://img.shields.io/badge/Severity-High-red) ![Status](https://img.shields.io/badge/Status-Completed-green)
 
 ## Project Overview
 
-A hands-on SOC Tier 1 investigation of malicious executable delivery and suspected Remote Access Trojan (RAT) command-and-control activity.
-
-This project analyzes the Natureforce traffic analysis exercise dated October 1, 2026, using network packet analysis, malware hash identification, threat intelligence, and evidence correlation.
-
-The objective is to validate security alerts, identify the affected workstation, investigate suspicious network communications, and produce a defensible incident assessment for escalation to SOC Tier 2.
+Hands-on SOC Tier 1 investigation of malicious executable delivery and suspected RAT C2 activity using Wireshark, TShark, PowerShell and VirusTotal. The Natureforce exercise (October 1, 2026) was investigated using PCAP evidence only. Malware delivery is confirmed with high confidence; execution and C2 remain unconfirmed.
 
 ## Investigation Environment
 
-| Property | Details |
-|---|---|
-| Dataset | Natureforce — October 1, 2026 |
-| Evidence Source | PCAP |
-| Total Packets | 42,497 |
-| Capture Duration | 40 minutes 31 seconds |
-| Network | 10.10.1.0/24 |
-| Domain | natureforce.com |
-| Investigation Level | SOC Tier 1 |
+42,497 packets | Ethernet | 40m 31s | 10.10.1.0/24 | NATUREFORCE.COM
 
-## Tools Used
+[Dataset and source](dataset/README.md) · [Full incident report](report/incident-investigation-report.md) · [Timeline](evidence/timeline.csv) · [IOCs](evidence/iocs.csv)
 
-- **Wireshark:** Network traffic analysis, protocol inspection, TCP stream analysis, and I/O graphs.
-- **TShark:** Extraction of reconstructed HTTP file data.
-- **PowerShell:** SHA-256 calculation directly from extracted bytes in memory.
-- **VirusTotal:** Hash-based malware identification and threat intelligence.
+## Investigation Walkthrough
 
-## Investigation Workflow
+### Capture properties
 
-1. Capture properties and protocol hierarchy analysis.
-2. Endpoint and conversation analysis.
-3. TCP, HTTP, DNS, and TLS traffic investigation.
-4. Host identification using NBNS and Kerberos.
-5. Suspicious executable transfer validation.
-6. Network behavioral analysis and TCP Keep-Alive identification.
-7. Security alert validation and IP discrepancy investigation.
-8. SHA-256 extraction and malware identification.
-9. Evidence correlation, incident assessment, and escalation.
+Capture metadata: 42,497 packets, Ethernet, approximately 40 minutes 31 seconds.
+
+![Capture properties](evidence/screenshots/01_capture_properties.png)
+
+### Protocol hierarchy
+
+TCP dominates packet count; TLS accounts for 85.5% of bytes in the hierarchy.
+
+![Protocol hierarchy](evidence/screenshots/02_protocol_hierarchy.png)
+
+### IPv4 endpoints
+
+10.10.1.128 is the main internal endpoint.
+
+![IPv4 endpoints](evidence/screenshots/03_endpoints.png)
+
+### IPv4 conversations
+
+Prioritized external peers by volume and duration.
+
+![IPv4 conversations](evidence/screenshots/04_ipv4_conversations.png)
+
+### TCP conversations
+
+Streams 127, 128 and 130 were selected for review.
+
+![TCP conversations](evidence/screenshots/05_tcp_conversations.png)
+
+### DNS infrastructure
+
+DNS queries and responses identify 10.10.1.10 as the DNS server.
+
+![DNS infrastructure](evidence/screenshots/06_dns.png)
+
+### TLS cloud connection
+
+Stream 127 uses TLS 1.3; SNI is consistent with Azure Blob Storage.
+
+![TLS cloud connection](evidence/screenshots/07_tls_stream127.png)
+
+### Executable request
+
+Frame 23091: HTTP GET /wilow/runner_ilove.exe on TCP 9000.
+
+![Executable request](evidence/screenshots/08_http_request.png)
+
+### Executable response
+
+Frame 24916: HTTP 200 OK and 1,646,592 bytes of reconstructed file data.
+
+![Executable response](evidence/screenshots/09_http_response.png)
+
+### PE indicators
+
+MZ, DOS stub and PE section names support executable identification.
+
+![PE indicators](evidence/screenshots/10_pe_indicators.png)
+
+### Suspicious TCP connection
+
+Stream 130 begins shortly after delivery; SSLv2 label does not establish the real protocol.
+
+![Suspicious TCP connection](evidence/screenshots/11_suspicious_stream.png)
+
+### NBNS hostname
+
+Frame 33 registers DESKTOP-4VGYQX7.
+
+![NBNS hostname](evidence/screenshots/16_nbns.png)
+
+### Computer account
+
+Kerberos evidence associates the workstation computer account with NATUREFORCE.COM.
+
+![Computer account](evidence/screenshots/12_kerberos.png)
+
+### SHA-256 extraction
+
+TShark and PowerShell reconstruct and hash the HTTP body; byte count matches.
+
+![SHA-256 extraction](evidence/screenshots/13_sha256.png)
+
+### Malware intelligence
+
+48 of 71 vendors flagged the exact hash as malicious in the recorded lookup.
+
+![Malware intelligence](evidence/screenshots/14_virustotal.png)
+
+### Relations review
+
+The reviewed Relations tab does not establish a link to the suspected C2 IP.
+
+![Relations review](evidence/screenshots/15_relations.png)
+
+### I/O graph
+
+The initial burst dominates the graph; low later activity is not necessarily zero.
+
+![I/O graph](evidence/screenshots/17_io_graph.png)
+
+### TCP Keep-Alive
+
+After relative second 220, the displayed sample shows one-byte Keep-Alive probes about 20 seconds apart.
+
+![TCP Keep-Alive](evidence/screenshots/18_keepalive.png)
+
+## Alert Validation and Behavioral Analysis
+
+Alert 1 (107.175.82[.]242:9000) matches the executable transfer. Alert 2 reports 195.64.128[.]106:443, absent from the capture; stream 130 instead uses 195.63.128[.]106:443. The discrepancy is unresolved. Stream 130 began about 5.75 seconds after delivery and lasted about 37 minutes. Its initial burst was followed by low activity and observed TCP Keep-Alive approximately every 20 seconds, not proof of application polling or C2.
+
+### Reported alerts
+
+The exercise lists the executable delivery and suspected CNCmachineRMS C2 alerts.
+
+![Reported alerts](evidence/screenshots/19_reported_alerts.png)
+
+### Alert IP discrepancy
+
+The exact reported IP 195.64.128.106 returns zero packets.
+
+![Alert IP discrepancy](evidence/screenshots/20_alert_discrepancy.png)
 
 ## Key Findings
 
-### 1. Affected Workstation
-
-| Attribute | Value |
+| Item | Result |
 |---|---|
-| IP Address | 10.10.1.128 |
-| Hostname | DESKTOP-4VGYQX7 |
-| MAC Address | 00:22:fb:ec:7e:e7 |
-| Computer Account | DESKTOP-4VGYQX7$ |
-| Domain | NATUREFORCE.COM |
-
-### 2. Confirmed Malicious Executable Delivery
-
-A Windows executable named `runner_ilove.exe` was transferred from an external server over HTTP on TCP port 9000.
-
-- External endpoint: `107.175.82[.]242:9000`
-- TCP Stream: `128`
-- HTTP Request Frame: `23091`
-- HTTP Response Frame: `24916`
-- HTTP Status: `200 OK`
-- User-Agent: `curl/8.21.0`
-- File Size: `1,646,592 bytes`
-
-The reconstructed HTTP payload contained an MZ signature and Windows PE indicators. Hash-based threat intelligence identified the file as malicious with high confidence.
-
-### 3. Suspicious Post-Download Communication
-
-Approximately 5.7 seconds after the completed executable transfer, the same workstation established a TCP connection to `195.63.128[.]106:443`.
-
-The connection lasted approximately 37 minutes and exhibited:
-
-- An unusual application protocol classification.
-- A high-volume initial data exchange.
-- Periodic TCP Keep-Alive activity at approximately 20-second intervals.
-
-The connection was classified as suspicious potential C2 activity. TCP Keep-Alive behavior alone does not establish malware beaconing.
-
-### 4. Malware Identification
-
-The executable's SHA-256 hash was calculated directly from the PCAP using TShark and PowerShell, without executing the sample.
-
-**SHA-256:**
-
-`b789adce70c028a6d17be45ec34667aa95586350ee0c4057e75b138b1ad35061`
-
-| VirusTotal Result | Details |
-|---|---|
-| Detection Ratio | 48/71 |
-| Known Filename | service.exe |
-| Threat Category | Trojan |
-| Popular Threat Label | trojan.capdoor/zusy |
-
-[View VirusTotal Report](https://www.virustotal.com/gui/file/b789adce70c028a6d17be45ec34667aa95586350ee0c4057e75b138b1ad35061)
-
-### 5. Alert Validation
-
-The executable-transfer alert was successfully validated.
-
-The reported CNCmachineRMS RAT C2 alert referenced `195.64.128[.]106:443`, whereas the suspicious connection observed in the PCAP involved `195.63.128[.]106:443`.
-
-No packets matching the reported IP were found. This discrepancy was documented rather than assumed to be a confirmed typographical error.
-
-## Incident Assessment
-
-| Assessment | Result |
-|---|---|
-| Incident Type | Malware Delivery / Suspected RAT Infection |
-| Recommended Severity | High |
-| Malware Delivery | Confirmed |
-| Malware Execution | Not Established |
-| C2 Activity | Suspected — Unconfirmed |
-| Disposition | Escalate to Tier 2 |
-
-The confirmed malicious executable delivery and subsequent suspicious external communication provide sufficient justification for escalation.
-
-Endpoint investigation is required to establish execution, persistence, process attribution, and potential command-and-control activity.
-
-## Investigation Report
-
-The detailed technical report includes packet-level evidence, investigation methodology, the incident timeline, indicators of compromise, investigation limitations, and escalation recommendations.
-
-[Read the Full Investigation Report](investigation-report.md)
+| Host | DESKTOP-4VGYQX7 / 10.10.1.128 |
+| Malware delivery | runner_ilove.exe, stream 128, frames 23091/24916 |
+| SHA-256 | `b789adce70c028a6d17be45ec34667aa95586350ee0c4057e75b138b1ad35061` |
+| Threat intelligence | [VirusTotal](https://www.virustotal.com/gui/file/b789adce70c028a6d17be45ec34667aa95586350ee0c4057e75b138b1ad35061) — 48/71 at recorded lookup |
+| Potential C2 | 195.63.128[.]106:443 — unconfirmed |
+| Execution / human user | Not established |
+| Severity / disposition | High (recommended) / Escalate to Tier 2 |
 
 ## Repository Contents
 
-- `README.md` — Project overview and key findings.
-- `investigation-report.md` — Complete SOC Tier 1 incident report.
-- `evidence/` — Supporting Wireshark and VirusTotal screenshots.
-- `scripts/` — PowerShell script for SHA-256 extraction.
+- [Full investigation report](report/incident-investigation-report.md)
+- [Dataset documentation](dataset/README.md)
+- [Findings](evidence/findings.md), [timeline](evidence/timeline.csv), [IOCs](evidence/iocs.csv)
+- [Evidence screenshots](evidence/screenshots/)
+- [Hash extraction script](scripts/extract_sha256.ps1)
 
-## Skills Demonstrated
+## Limitations and Disclaimer
 
-- Network traffic analysis and protocol investigation.
-- Security alert validation.
-- Suspicious file transfer identification.
-- TCP stream and behavioral analysis.
-- Active Directory host attribution.
-- Malware hash extraction and threat intelligence.
-- Evidence correlation and incident timeline reconstruction.
-- SOC Tier 1 incident reporting and escalation.
-
-## Limitations
-
-This investigation was conducted using PCAP evidence and publicly available hash-based threat intelligence. No endpoint logs, EDR telemetry, or live system access were available.
-
-The human user, malware execution, and exact CNCmachineRMS RAT attribution could not be independently established.
-
-## Disclaimer
-
-This project was created for cybersecurity education and SOC analyst portfolio development. No malicious executable was executed or included in this repository.
+Educational PCAP investigation; no endpoint logs or live system access. Malware family, execution, persistence and C2 attribution remain unconfirmed. No executable or raw PCAP is redistributed. Do not contact observed infrastructure or execute samples.
