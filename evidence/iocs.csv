@@ -1,0 +1,8 @@
+type,value,assessment
+sha256,b789adce70c028a6d17be45ec34667aa95586350ee0c4057e75b138b1ad35061,"Malicious sample, high confidence"
+ip_port,107.175.82[.]242:9000,Confirmed delivery endpoint
+ip_port,195.63.128[.]106:443,"Suspected C2, unconfirmed"
+ip_port,195.64.128[.]106:443,Reported alert IP; absent from capture
+filename,runner_ilove.exe,Observed download name
+filename,service.exe,VirusTotal sample name
+uri,/wilow/runner_ilove.exe,Observed delivery resource
